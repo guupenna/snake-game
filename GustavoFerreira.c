@@ -68,13 +68,13 @@ typedef struct {
     int numero;
 } tJogada;      // Utilizado para mapear e montar histórico de jogadas
 
-void RealizaJogo(tJogo jogo, FILE *fsaida, FILE *fresumo, FILE *franking, FILE *festatisticas, FILE *fheatmap);
+void RealizaJogo(tJogo jogo, FILE *fresumo, FILE *franking, FILE *festatisticas, FILE *fheatmap);
 
 tJogo ExecutaJogada(tJogo jogo, tJogada jogada, tPosicao pos[], FILE *fresumo);
 
 tJogo AtualizaJogo(tJogo jogo, tJogada jogada, tPosicao pos[], FILE *fresumo);
 
-void ImprimeSaida(tJogo jogo, tJogada jogada, FILE *fsaida);
+void ImprimeSaida(tJogo jogo, tJogada jogada);
 
 // Movimento e ações com a cobra
 void MarcaPosicaoCabeca(tCobra cobra, tJogada jogada, tPosicao pos[]);
@@ -145,7 +145,7 @@ char RetornaMapaNaPosicao(tMapa mapa, int i, int j);
 int EhVitoria(tMapa mapa);
 
 int main(int argc, char * argv[]) {
-    FILE *fileMapa, *fileInicializacao, *fileResumo, *fileRanking, *fileEstatisticas, *fileHeatmap, *fileSaida;
+    FILE *fileMapa, *fileInicializacao, *fileResumo, *fileRanking, *fileEstatisticas, *fileHeatmap;
     char diretorio[1000];
     tJogo jogo;
 
@@ -170,10 +170,7 @@ int main(int argc, char * argv[]) {
 
     jogo = InicializaJogo(jogo, fileMapa, fileInicializacao);
 
-    //Abrir todos os arquivos a serem utilizados para a realização do jogo
-    sprintf(diretorio, "%s/saida/saida.txt", argv[1]);
-    fileSaida = fopen(diretorio, "w");
-
+    // Abrir todos os arquivos a serem utilizados para a realização do jogo
     sprintf(diretorio, "%s/saida/resumo.txt", argv[1]);
     fileResumo = fopen(diretorio, "w");
 
@@ -186,7 +183,7 @@ int main(int argc, char * argv[]) {
     sprintf(diretorio, "%s/saida/heatmap.txt", argv[1]);
     fileHeatmap = fopen(diretorio, "w");
 
-    RealizaJogo(jogo, fileSaida, fileResumo, fileRanking, fileEstatisticas, fileHeatmap);
+    RealizaJogo(jogo, fileResumo, fileRanking, fileEstatisticas, fileHeatmap);
 
     // Fecha todos os arquivos abertos anteriormente
     fclose(fileMapa);
@@ -195,7 +192,6 @@ int main(int argc, char * argv[]) {
     fclose(fileRanking);
     fclose(fileEstatisticas);
     fclose(fileHeatmap);
-    fclose(fileSaida);
 
     return 0;
 }
@@ -289,7 +285,7 @@ tJogo PoeDentroDetJogo(tMapa mapa, tCobra cobra, tJogo jogo) {
     return jogo;
 }
 
-void RealizaJogo(tJogo jogo, FILE *fsaida, FILE *fresumo, FILE *franking, FILE *festatisticas, FILE *fheatmap) {
+void RealizaJogo(tJogo jogo, FILE *fresumo, FILE *franking, FILE *festatisticas, FILE *fheatmap) {
     tJogada jogada;
     tPosicao pos[TAM_MAX*TAM_MAX] = {'\0'};
     jogada.numero = 1;
@@ -303,20 +299,20 @@ void RealizaJogo(tJogo jogo, FILE *fsaida, FILE *fresumo, FILE *franking, FILE *
         
         jogo = ExecutaJogada(jogo, jogada, pos, fresumo);
 
-        ImprimeSaida(jogo, jogada, fsaida);
+        ImprimeSaida(jogo, jogada);
 
         jogada.numero++;
 
         if (EhGameOver(jogo)) {
-            fprintf(fsaida, "Game over!\n");
+            printf("Game over!\n");
             break;
         }
         if (EhVitoria(jogo.mapa)) {
-            fprintf(fsaida, "Voce venceu!\n");
+            printf("Voce venceu!\n");
             break;
         }
     }
-    fprintf(fsaida, "Pontuacao final: %d\n", jogo.pts);
+    printf("Pontuacao final: %d\n", jogo.pts);
 
     MarcaPosicaoCabeca(jogo.cobra, jogada, pos);    // Para marcar a posição final da cabeça, que fez o jogo terminar
 
@@ -329,7 +325,6 @@ void RealizaJogo(tJogo jogo, FILE *fsaida, FILE *fresumo, FILE *franking, FILE *
 
     ImprimeHeatmap(l, c, heatmap, jogada, pos, fheatmap);
     ImprimeRanking(l, c, heatmap, franking);
-
     ImprimeEstatisticas(jogo.cobra, festatisticas);
 }
 
@@ -656,31 +651,31 @@ tCobra TrocaPosicao(tCobra cobra, tPosicao posVazia, tPosicao posCorpo) {
     return cobra;
 }
 
-void ImprimeSaida(tJogo jogo, tJogada jogada, FILE *fsaida) {
+void ImprimeSaida(tJogo jogo, tJogada jogada) {
     int i, j, l, c;
 
     l = ObtemTamanhoLinhas(jogo.mapa);
     c = ObtemTamanhoColunas(jogo.mapa);
 
-    fprintf(fsaida, "\nEstado do jogo apos o movimento '%c':\n", jogada.movimento);
+    printf("\nEstado do jogo apos o movimento '%c':\n", jogada.movimento);
     for (i=0; i<l; i++) {
         for (j=0; j<c; j++) {
             if (EhPosicaoCorpo(jogo.cobra, i, j)) {
                 char corpoNaPosicao = RetornaCorpoNaPosicao(jogo.cobra, i, j);
-                fprintf(fsaida, "%c", corpoNaPosicao);
+                printf("%c", corpoNaPosicao);
                 continue;
             }
             if (EhPosicaoCabeca(jogo.cobra, i, j)) {
                 char cabeca = ObtemCabeca(jogo.cobra);
-                fprintf(fsaida, "%c", cabeca);
+                printf("%c", cabeca);
                 continue;
             }
             char mapaNaPosicao = RetornaMapaNaPosicao(jogo.mapa, i, j);
-            fprintf(fsaida, "%c", mapaNaPosicao);
+            printf("%c", mapaNaPosicao);
         }
-        fprintf(fsaida, "\n");
+        printf("\n");
     }
-    fprintf(fsaida, "Pontuacao: %d\n", jogo.pts);
+    printf("Pontuacao: %d\n", jogo.pts);
 }
 
 char ObtemCabeca(tCobra cobra) {
