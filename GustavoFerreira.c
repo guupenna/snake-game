@@ -7,6 +7,7 @@
 #define MAP_COMIDA '*'
 #define MAP_PAREDE '#'
 #define MAP_DINHEIRO '$'
+#define MAP_TUNEL '@'
 
 typedef struct {
     int tamLinhas;
@@ -91,6 +92,11 @@ tCobra CresceCobra(tCobra cobra, tJogada jogada, tPosicao pos[]);
 
 tCobra MataCobra(tCobra cobra, tMapa mapa);
 
+// Tuneis
+tCobra TeleportaCobra(tCobra cobra, tMapa mapa);
+
+tPosicao RetornaPosicaoOutroTunel(tCobra cobra, tMapa mapa);
+
 // Resumo
 void ImprimeNoResumo(FILE *fresumo, tJogada jogada, tCobra cobra, int acao);
 
@@ -155,7 +161,7 @@ int main(int argc, char * argv[]) {
         return 0;
     }
     
-    // Abre o arquivo que contem o mapa
+    // Verifica se foi inserido um caminho válido para o diretório
     sprintf(diretorio, "%s/mapa.txt", argv[1]);
     fileMapa = fopen(diretorio, "r");
 
@@ -170,7 +176,7 @@ int main(int argc, char * argv[]) {
 
     jogo = InicializaJogo(jogo, fileMapa, fileInicializacao);
 
-    // Abrir todos os arquivos a serem utilizados para a realização do jogo
+    //Abre todos os outros arquivos que receberão saídas durante a realização do jogo
     sprintf(diretorio, "%s/saida/resumo.txt", argv[1]);
     fileResumo = fopen(diretorio, "w");
 
@@ -520,12 +526,20 @@ tJogo AtualizaJogo(tJogo jogo, tJogada jogada, tPosicao pos[], FILE *fresumo) {
                         jogo.pts++;
                         jogo.cobra = CresceCobra(jogo.cobra, jogada, pos);
                     }
-                    // Substitui a posição no mapa que a cabeça da cobra passou, por um espaço vazio
+                    if (temAcao == 3) {
+                        jogo.cobra = TeleportaCobra(jogo.cobra, jogo.mapa);
+
+                        // Reinicia o loop que verifica a situação do jogo, já que ao teleportar, a cobra se movimenta
+                        i = 0;
+                        j = 0;
+                        continue;
+                    }
+                    // Substitui a posição no mapa que a cabeça da cobra passou, por um espaço vazio (caso não seja tunel)
                     char vazio = ' ';
                     jogo.mapa = PoeNoMapaNaPosicao(jogo.mapa, i, j, vazio);
 
                     if (EhVitoria(jogo.mapa)) {
-                        temAcao = 3;
+                        temAcao = 4;
                     }
 
                 } else {
@@ -542,6 +556,53 @@ tJogo AtualizaJogo(tJogo jogo, tJogada jogada, tPosicao pos[], FILE *fresumo) {
         }
     }
     return jogo;
+}
+
+tCobra TeleportaCobra(tCobra cobra, tMapa mapa) {
+    tPosicao posicao = RetornaPosicaoOutroTunel(cobra, mapa);
+    int l, c;
+
+    // Os incrementos e decrementos servem para fazer com que a cobra seja teleportada para a posição SEGUINTE ao túnel, e não nele mesmo
+    if (cobra.direcao == COBRA_DIREITA) {
+        cobra.lcabeca = posicao.i;
+        cobra.ccabeca = posicao.j+1;
+    }
+    if (cobra.direcao == COBRA_ESQUERDA) {
+        cobra.lcabeca = posicao.i;
+        cobra.ccabeca = posicao.j-1;
+    }
+    if (cobra.direcao == COBRA_BAIXO) {
+        cobra.lcabeca = posicao.i+1;
+        cobra.ccabeca = posicao.j;
+    }
+    if (cobra.direcao == COBRA_CIMA) {
+        cobra.lcabeca = posicao.i-1;
+        cobra.ccabeca = posicao.j;
+    }
+
+    cobra = MantemCobraNoMapa(cobra, mapa);
+
+    return cobra;
+}
+
+tPosicao RetornaPosicaoOutroTunel(tCobra cobra, tMapa mapa) {
+    tPosicao posicao;
+    int i, j, l, c;
+
+    l = ObtemTamanhoLinhas(mapa);
+    c = ObtemTamanhoColunas(mapa);
+
+    for (i=0; i<l; i++) {
+        for (j=0; j<c; j++) {
+            if (mapa.posicoes[i][j] == MAP_TUNEL) {
+                if (i != cobra.lcabeca || j != cobra.ccabeca) {
+                    posicao.i = i;
+                    posicao.j = j;
+                    return posicao;
+                }
+            }
+        }
+    }
 }
 
 tCobra AdicionaMovSemPontoEstatistica (tCobra cobra, tEstatistica estatistica) {
@@ -565,7 +626,7 @@ void ImprimeNoResumo(FILE *fresumo, tJogada jogada, tCobra cobra, int acao) {
         fprintf(fresumo, "Movimento %d (%c) fez a cobra crescer para o tamanho %d\n", jogada.numero, jogada.movimento, cobra.tamanho);
         break;
 
-        case 3:
+        case 4:
         fprintf(fresumo, "Movimento %d (%c) fez a cobra crescer para o tamanho %d, terminando o jogo\n", jogada.numero, jogada.movimento, cobra.tamanho);
         break;
     }
@@ -608,6 +669,8 @@ int IdentificaAcao(char sign) {
         return 1;
     } else if (sign == MAP_COMIDA) {
         return 2;
+    } else if (sign == MAP_TUNEL) {
+        return 3;
     } else {
         return 0;
     }
@@ -767,6 +830,7 @@ void ImprimeRanking(int l, int c, int heatmap[l][c], FILE *franking) {
             }
         }
     }
+    // Varre o heatmap verificando se a posição atual é igual ao maior valor e bota no ranking (sempre em ordem de posição) e vai diminuindo esse valor até chegar em 1
     for (n=maiorValor; n>=1; n--)
         for (i=0; i<l; i++) {
             for (j=0; j<c; j++) {
