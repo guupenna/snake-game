@@ -212,7 +212,7 @@ tJogo InicializaJogo(tJogo jogo, FILE *fmapa, FILE *finicializacao) {
     l = ObtemTamanhoLinhas(jogo.mapa);
     c = ObtemTamanhoColunas(jogo.mapa);
 
-    // Imprime mapa e cobra
+    // Imprime mapa e cabeça da cobra (cobra inicial)
     for (i=0; i<l; i++) {
         for (j=0; j<c; j++) {
             if (EhPosicaoCabeca(jogo.cobra, i, j)) {
@@ -255,10 +255,12 @@ tJogo IdentificaMapaECobra(tMapa mapa, tCobra cobra, FILE *fmapa) {
     l = ObtemTamanhoLinhas(mapa);
     c = ObtemTamanhoColunas(mapa);
 
+    // Atribui o que foi lido do arquivo "mapa.txt" na matriz correspodente ao mapa, e ao identificar a cabeça da cobra dentro do mapa, faz a atribuição nos membros da struct correspondente à cobra
     for (i=0; i<l; i++) {
         for (j=0; j<c; j++) {
             fscanf(fmapa, "%c", &aux);
             if (aux == COBRA_DIREITA || aux == COBRA_ESQUERDA || aux == COBRA_CIMA || aux == COBRA_BAIXO) {
+                // A posição em que foi identificada a cobra será vazia no mapa, e a posição da cobra armazenada para ser imprimida separadamente
                 mapa.posicoes[i][j] = ' ';
                 cobra.lcabeca = i;
                 cobra.ccabeca = j;
@@ -358,13 +360,17 @@ tJogo ExecutaJogada(tJogo jogo, tJogada jogada, tPosicao pos[], FILE *fresumo) {
     MarcaPosicaoCabeca(jogo.cobra, jogada, pos);
 
     tEstatistica estatistica = ObtemEstatisticas(jogo.cobra);
-    jogo.cobra = MoveCabeca(jogo.cobra, estatistica, jogada, pos);
-
-    jogo.cobra = MantemCobraNoMapa(jogo.cobra, jogo.mapa);
-
-    jogo = AtualizaJogo(jogo, jogada, pos, fresumo);
 
     // Primeiro movimenta a cabeça para identificar e realizar ação necessária, e depois movimenta o corpo
+    jogo.cobra = MoveCabeca(jogo.cobra, estatistica, jogada, pos);
+
+    // Garante que a cobra permaneça dentro dos limites do mapa
+    jogo.cobra = MantemCobraNoMapa(jogo.cobra, jogo.mapa);
+
+    // Verifica a situação atual do jogo e realiza as devidas ações necessárias
+    jogo = AtualizaJogo(jogo, jogada, pos, fresumo);
+
+    // Caso a cobra tenha crescido nessa jogada (isso é identificado após o movimento da cabeça), o corpo não é movimentado, pois é adicionado uma parte ao corpo da cobra
     if (!CresceuAgr(jogo.cobra)) {
         jogo.cobra = MoveCorpo(jogo.cobra, jogada, pos);
     }
@@ -507,7 +513,7 @@ tJogo AtualizaJogo(tJogo jogo, tJogada jogada, tPosicao pos[], FILE *fresumo) {
     for (i=0; i<l; i++) {
         for (j=0; j<c; j++) {
 
-            if (EhPosicaoCabeca(jogo.cobra, i, j)) {
+            if (EhPosicaoCabeca(jogo.cobra, i, j)) {    // Identifica a posição que a cabeça da cobra está no mapa, e a ação a ser executada, caracterizada pelo char naquela posição do mapa
                 if (!EhPosicaoCorpo(jogo.cobra, i, j)) {
                     char mapaNaPos = RetornaMapaNaPosicao(jogo.mapa, i, j);
                     temAcao = IdentificaAcao(mapaNaPos);
@@ -580,6 +586,7 @@ tCobra TeleportaCobra(tCobra cobra, tMapa mapa) {
         cobra.ccabeca = posicao.j;
     }
 
+    // Garante que a cobra não passou dos limites do mapa ao ser teleportada
     cobra = MantemCobraNoMapa(cobra, mapa);
 
     return cobra;
@@ -592,6 +599,7 @@ tPosicao RetornaPosicaoOutroTunel(tCobra cobra, tMapa mapa) {
     l = ObtemTamanhoLinhas(mapa);
     c = ObtemTamanhoColunas(mapa);
 
+    // Varre o mapa procurando o caracter correspondente ao tunel e verifica se a posicao dele nao coincide com a posicao atual da cabeça, sendo assim, o túnel a ser teleportado
     for (i=0; i<l; i++) {
         for (j=0; j<c; j++) {
             if (mapa.posicoes[i][j] == MAP_TUNEL) {
@@ -677,9 +685,9 @@ int IdentificaAcao(char sign) {
 }
 
 tCobra CresceCobra(tCobra cobra, tJogada jogada, tPosicao pos[]) {
-    tPosicao ultimaPosicao = pos[jogada.numero];
+    tPosicao ultimaPosicao = pos[jogada.numero];    // Atribui a posicao anterior da cabeca à variavel "ultimaPosicao"
 
-    cobra.corpo[ultimaPosicao.i][ultimaPosicao.j] = COBRA_CORPO;
+    cobra.corpo[ultimaPosicao.i][ultimaPosicao.j] = COBRA_CORPO;    // Faz essa posicao anterior da cabeca receber uma parte do corpo
 
     cobra.tamanho++;
     cobra.cresceuAgr = 1;
@@ -707,6 +715,7 @@ tCobra MoveCorpo(tCobra cobra, tJogada jogada, tPosicao pos[]) {
 tCobra TrocaPosicao(tCobra cobra, tPosicao posVazia, tPosicao posCorpo) {
     char vazio;
 
+    // Bota o conteudo da posicao vazia naquela posicao do corpo e vice-versa
     vazio = cobra.corpo[posVazia.i][posVazia.j];
     cobra.corpo[posVazia.i][posVazia.j] = COBRA_CORPO;
     cobra.corpo[posCorpo.i][posCorpo.j] = vazio;
@@ -759,6 +768,7 @@ int EhVitoria(tMapa mapa) {
     l = ObtemTamanhoLinhas(mapa);
     c = ObtemTamanhoColunas(mapa);
 
+    // Caso haja alguma comida no mapa, não é vitória
     for (i=0; i<l; i++) {
         for (j=0; j<c; j++) {
             if (mapa.posicoes[i][j] == MAP_COMIDA) {
@@ -775,6 +785,7 @@ tCobra MataCobra(tCobra cobra, tMapa mapa) {
     l = ObtemTamanhoLinhas(mapa);
     c = ObtemTamanhoColunas(mapa);
 
+    // Troca as partes do corpo e a cabeça por 'X'
     for (i=0; i<l; i++) {
         for (j=0; j<c; j++) {
             if ((cobra.corpo[i][j] == COBRA_CORPO)) {
